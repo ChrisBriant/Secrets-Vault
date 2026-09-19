@@ -6,6 +6,10 @@ import hvac
 import dotenv
 import os
 from hvac.exceptions import InvalidPath
+from data.db import SessionLocal
+from data.models import Secret
+from fastapi import HTTPException
+import asyncio
 
 
 # #LOAD ENVIRONMENT
@@ -15,6 +19,21 @@ if os.path.isfile(dotenv_file):
 
 VAULT_ADDR = "http://127.0.0.1:8200"
 VAULT_TOKEN = os.environ.get("VAULT_TOKEN")
+
+# Connect to Vault
+client = hvac.Client(
+    url=VAULT_ADDR,
+    token=VAULT_TOKEN
+)
+
+
+def generate_secret():
+    # Characters used for the generated secrets
+    characters = string.ascii_letters + string.digits + "!@#$%^&*"
+
+    # Generate the secrets
+    return "".join(secrets.choice(characters) for _ in range(32))
+
 
 
 def generate_random_secrets_json():
@@ -155,13 +174,56 @@ def get_all_secrets():
     return walk_path()
 
 
+async def rotate_secret(secret_id):
+    #Generate a new secret
+    new_secret = generate_secret()
+    updated_secret = None
+    async with SessionLocal() as session:
+        #secret = await Secret.get_by_id(session,secret_id)
+        #Update in database
+        updated_secret = await Secret.update_one(session,secret_id,{
+            "password" : new_secret
+        })
+    if not updated_secret:
+        raise HTTPException(status_code=404,detail="Unable to find secret")
+    #Update in the vault
+    client = hvac.Client(
+        url=VAULT_ADDR,
+        token=VAULT_TOKEN
+    )
+
+    if not client.is_authenticated():
+        raise Exception("Vault authentication failed")
+    
+    client.secrets.kv.v2.create_or_update_secret(
+        path= f"{updated_secret.path}/{updated_secret.username}",
+        secret={
+            "username": updated_secret.username,
+            "password": updated_secret.password
+        }
+    )
+
+    return updated_secret
+
+def get_secret_by_path(path):
+    secret = client.secrets.kv.v2.read_secret_version(
+        mount_point="secret",
+        path=path
+    )
+    return secret
+
+
 if __name__ == "__main__":
     #Generate random secrets file
     #reponse_data = generate_random_secrets_json()
     #Add secrets to the vault
-    add_secrets_to_vault("animals", "secrets.json")
+    #add_secrets_to_vault("animals", "secrets.json")
     #Get all of the secrets
-    all_secrets = get_all_secrets()
-    print("ALL SECRETS", json.dumps(all_secrets, indent=4))
+    #all_secrets = get_all_secrets()
+    #print("ALL SECRETS", json.dumps(all_secrets, indent=4))
+    #Rotate a secret
+    #asyncio.run(rotate_secret(61))
+    secret_from_vault = get_secret_by_path("animals/alligator")
+    print("RETRIEVED SECRET", secret_from_vault)
 
 

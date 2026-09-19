@@ -28,3 +28,7 @@ vault version
 vault server -dev
 
 The server will display a root token when it starts. Copy this value to the environment variable "VAULT TOKEN"
+
+
+## RUNNING FASTAPI
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
