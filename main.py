@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from routes.hashicorp import router as hashicorp_router
+from routes.entra import router as entra_router
 import os
 import dotenv
 
@@ -23,3 +24,4 @@ app.add_middleware(
 )
 
 app.include_router(hashicorp_router, prefix="/hashicorp")
+app.include_router(entra_router, prefix="/entra")
