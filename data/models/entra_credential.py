@@ -32,9 +32,12 @@ class EntraCredential(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     secret_id = Column(String, index=True)
-    application_id = Column(String, index=True)
+    object_id = Column(String, index=True)
     client_id  = Column(String, index=True, unique=True)
-    credential_id  = Column(String, index=True)
+    display_name = Column(String, index=True, unique=True)
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=False)
+    
     #vault_id = Column(Integer, ForeignKey("entra_vault_associations.id"), nullable=False)
     
     vault_associations = relationship(
@@ -47,15 +50,19 @@ class EntraCredential(Base):
         cls,
         db: AsyncSession,
         secret_id : str,
-        application_id : str,
+        object_id : str,
         client_id  : str,
-        credential_id  : str,
+        display_name : str,
+        start_date : datetime,
+        end_date : datetime,
     ):
         entra_credential = cls(
             secret_id = secret_id,
-            application_id = application_id,
+            object_id = object_id,
             client_id  = client_id,
-            credential_id  = credential_id
+            display_name = display_name,
+            start_date = start_date,
+            end_date = end_date,
         )
 
         try:
@@ -69,6 +76,9 @@ class EntraCredential(Base):
 
         inserted_secret = await db.execute(
             select(cls)
+            .options(
+                selectinload(cls.vault_associations)
+            )
             .where(cls.id == entra_credential.id))
 
         return inserted_secret.scalar_one_or_none()
@@ -97,9 +107,11 @@ class EntraCredential(Base):
 
         allowed_fields = {
             "secret_id",
-            "application_id",
+            "object_id",
             "client_id",
-            "credential_id",
+            "display_name",
+            "start_date",
+            "end_date"
         }
 
 
