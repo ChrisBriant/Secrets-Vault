@@ -7,7 +7,7 @@ import dotenv
 import os
 from hvac.exceptions import InvalidPath
 from data.db import SessionLocal
-from data.models import Secret
+from data.models.models import Secret
 from fastapi import HTTPException
 import asyncio
 

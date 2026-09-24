@@ -1,6 +1,7 @@
 import asyncio
 from .db import engine, Base
-from .models import Secret
+from .models.models import Secret
+from .models.entra_credential import EntraCredential, EntraVaultAssociation
 from sqlalchemy import text
 
 

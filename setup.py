@@ -1,5 +1,5 @@
 from vault.generate_secrets import get_all_secrets, add_secrets_to_vault
-from data.models import Secret
+from data.models.models import Secret
 from data.db import SessionLocal
 import asyncio, json
 

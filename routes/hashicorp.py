@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Response, Query
 from typing import Optional
-from data.models import Secret
+from data.models.models import Secret
 from data.db import SessionLocal
 from data.schemas import (
     PaginatedResponse,

@@ -1,4 +1,4 @@
-from .db import Base, AsyncSession, SessionLocal
+from ..db import Base, AsyncSession, SessionLocal
 from typing import List
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import (
@@ -48,6 +48,11 @@ class Secret(Base):
         nullable=False,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    entra_associations = relationship(
+        "EntraVaultAssociation",
+        back_populates="vault",
     )
 
     @classmethod
@@ -210,3 +215,5 @@ class Secret(Base):
         )
         print("ROWS", rows.rowcount)
         await db.commit()
+
+
