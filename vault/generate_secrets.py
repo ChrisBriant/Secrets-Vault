@@ -212,6 +212,18 @@ def get_secret_by_path(path):
     )
     return secret
 
+def add_secret_to_vault(path,username,password):
+    if not client.is_authenticated():
+        raise Exception("Vault authentication failed")
+    
+    secret = client.secrets.kv.v2.create_or_update_secret(
+        path= f"{path}/{username}",
+        secret={
+            "username": username,
+            "password": password
+        }
+    )
+    print("SECRET", secret)
 
 if __name__ == "__main__":
     #Generate random secrets file

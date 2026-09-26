@@ -1,3 +1,4 @@
+from __future__ import annotations
 from ..db import Base, AsyncSession, SessionLocal
 from typing import List
 from sqlalchemy.exc import IntegrityError
@@ -31,12 +32,13 @@ from datetime import datetime, timedelta, timezone
 import secrets
 
 
+
 class Secret(Base):
     __tablename__ = "secrets"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, nullable=False, unique=True)
-    password = Column(String, nullable=False)
+    password = Column(String)
     path = Column(String, nullable=False)
     created = Column(
         DateTime(timezone=True),
@@ -77,6 +79,11 @@ class Secret(Base):
         except IntegrityError as ie:
             print("Error inserting secret", ie)
             await db.rollback()
+            result = await db.execute(
+                select(cls)
+                .where(cls.username == username)
+            )
+            return result.scalar_one_or_none()
 
         inserted_secret = await db.execute(
             select(cls)
