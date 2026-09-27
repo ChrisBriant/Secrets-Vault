@@ -34,7 +34,7 @@ class EntraCredential(Base):
     secret_id = Column(String, index=True)
     object_id = Column(String, index=True)
     client_id  = Column(String, index=True, unique=True)
-    display_name = Column(String, index=True, unique=True)
+    display_name = Column(String, index=True)
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
     vault_id =  Column(

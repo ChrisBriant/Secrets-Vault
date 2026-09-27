@@ -45,4 +45,11 @@ class EntraCredentialSchema(BaseModel):
     secret: SecretSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)
-    
+
+class VaultUsernamePasswordSchema(BaseModel):
+    username : str
+    password : str
+    path : str
+
+class EntraAppInputSchema(BaseModel):
+    app_name : str

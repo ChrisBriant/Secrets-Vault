@@ -166,6 +166,31 @@ async def remove_secret_credentials_and_create_new(access_token,object_id):
         print("NEW CRED RESPONSE", response.status_code,response.text)
         #response.raise_for_status()
 
+async def create_service_principal_and_secret(access_token,display_name):
+    """
+        Creates a service principal, but permissions would need to be assigned through the portal
+    """
+    url = (
+        f"https://graph.microsoft.com/v1.0/applications" 
+    )
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    payload = {
+        "displayName": display_name,
+        "passwordCredentials": [
+            {
+                "displayName": f"{display_name} secret"
+            }
+        ]
+    }
+
+    response = requests.post(url,headers=headers,json=payload)
+
+    print("CREATED SERVICE PRINCIPAL", response.status_code, response.text)
+    return response.json()
 
 async def load_service_principals_with_creds_into_db(token):
     secret_data = get_service_principals_with_secrets(token)
@@ -203,6 +228,7 @@ async def load_service_principals_with_creds_into_db(token):
         entra_metadata = await EntraCredential.get_all(session)
         entra_credentials = [ EntraCredentialSchema.model_validate(cred) for cred in entra_metadata]
         print("THESE ARE ENTRA CREDENTIALS", entra_credentials)
+
 
 
 

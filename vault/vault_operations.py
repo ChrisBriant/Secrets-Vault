@@ -39,3 +39,13 @@ def add_or_update_secret_to_vault(path,username,password):
         }
     )
     print("SECRET", secret)
+
+def get_vault_username_password(path):
+    secret = client.secrets.kv.v2.read_secret_version(
+        path=f"{path}"
+    )
+
+    username = secret["data"]["data"]["username"]
+    password = secret["data"]["data"]["password"]
+
+    return username, password

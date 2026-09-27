@@ -20,7 +20,7 @@ router = APIRouter()
 # Go to project root (adjust parents[n] if needed)
 #PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-
+#TODO : Add a filter to this endpoint
 @router.get("/secrets")
 async def get_secrets(
     request : Request,
