@@ -1,13 +1,14 @@
 import requests
+from fastapi import HTTPException
 from auth.get_entra_token import get_entra_token_management
 import json, asyncio
 from data.models.entra_credential import EntraCredential
-from data.models.entra_vault_association import EntraVaultAssociation
 from data.models.models import Secret
 from data.db import SessionLocal
 from data.schemas import EntraCredentialSchema
 from datetime import datetime, timedelta, timezone
-from vault.generate_secrets import add_secret_to_vault
+#from vault.generate_secrets import add_secret_to_vault
+from vault.vault_operations import add_or_update_secret_to_vault
 
 def get_service_principals_with_secrets(access_token):
 
@@ -100,7 +101,7 @@ async def remove_secret_credentials_and_create_new(access_token,object_id):
     #Get existing credentials
     url = (
         f"https://graph.microsoft.com/v1.0/applications/{object_id}" 
-        "?$select=passwordCredentials"
+        "?$select=passwordCredentials,displayName,appId"
     )
 
     headers = {
@@ -115,6 +116,8 @@ async def remove_secret_credentials_and_create_new(access_token,object_id):
     secret_name = "new secret"
     if response.status_code == 200:
         credential_data = response.json()
+        app_id = credential_data["appId"]
+        display_name = credential_data["displayName"]
         for cred in credential_data["passwordCredentials"]:
             #Update the secret name
             secret_name = cred["displayName"]
@@ -155,7 +158,7 @@ async def remove_secret_credentials_and_create_new(access_token,object_id):
     for i in range(5):
         response = requests.post(url,headers=headers,json=payload)
         if response.status_code == 200:
-            return response.json()
+            return app_id, display_name, response.json()
         if response.status_code == 409:
             await asyncio.sleep(2)
             continue
@@ -209,11 +212,50 @@ async def main():
 
     #TODO : NEED METHOD TO CREATE AN ENTRA CREDENTIAL
     object_id = '1fc41e5d-004b-4615-96d5-080c06a17fdc'
-    new_credential = await remove_secret_credentials_and_create_new(token,object_id)
+    app_id, display_name, new_credential = await remove_secret_credentials_and_create_new(token,object_id)
     print("NEW CREDENTIAL", json.dumps(new_credential, indent=4))
+    #Update in the database
+    async with SessionLocal() as session:
+        entra_credential = await EntraCredential.update_one_by_object_id(session,object_id,{
+            "secret_id" : new_credential["keyId"],
+            "display_name" : new_credential["displayName"],
+            "start_date" : datetime.fromisoformat(new_credential["startDateTime"]),
+            "end_date" : datetime.fromisoformat(new_credential["endDateTime"]),   
+        })
+        if not entra_credential:
+            #Create new if there is not one to update
+            entra_credential = await EntraCredential.create_one(
+                session,
+                new_credential["keyId"],
+                object_id,
+                app_id,
+                display_name,
+                datetime.fromisoformat(new_credential["startDateTime"].replace("Z", "+00:00")),
+                datetime.fromisoformat(new_credential["endDateTime"].replace("Z", "+00:00")),
+            )
+        entra_credential_response = EntraCredentialSchema.model_validate(entra_credential)
+        print("CREDENTIAL RESPONSE", entra_credential_response)
+        try:
+            add_or_update_secret_to_vault("entra",object_id,new_credential["secretText"])
+        except Exception as e:
+            raise HTTPException(status_code=400, detail="Unable to update the vault")
+        if not entra_credential_response.secret:
+            print("ADDING NEW SECRET")
+            #Create in vault and then new secret in database
+            add_or_update_secret_to_vault("entra",object_id,new_credential["secretText"])
+            new_secret = await Secret.create_one(
+                session,
+                object_id,
+                None,
+                f"entra/{object_id}"
+            )
+            updated_entra_credential = await EntraCredential.update_one_by_object_id(session,object_id,{
+                "secret" : new_secret,
+            })
+            entra_credential_response = EntraCredentialSchema.model_validate(updated_entra_credential)
+            print("UPDATED CREDENTIAL RESPONSE", entra_credential_response)
 
-
-    
+            
     #Put the secret in the vault
     #object_id = '1fc41e5d-004b-4615-96d5-080c06a17fdc'
     #ROTATE CREDENTIAL BY REMOVING ALL OLD CREDS

@@ -26,12 +26,13 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
 
-class EntraVaultAssociationSchema(BaseModel):
-    id: int
-    vault_id: int
-    entra_id: int
+#NO LONGER USED
+# class EntraVaultAssociationSchema(BaseModel):
+#     id: int
+#     vault_id: int
+#     entra_id: int
 
-    model_config = ConfigDict(from_attributes=True)
+#     model_config = ConfigDict(from_attributes=True)
 
 class EntraCredentialSchema(BaseModel):
     id : int
@@ -41,7 +42,7 @@ class EntraCredentialSchema(BaseModel):
     display_name : str
     start_date : datetime
     end_date : datetime
-    vault_associations: list[EntraVaultAssociationSchema] = Field(default_factory=list)
+    secret: SecretSchema | None = None
 
     model_config = ConfigDict(from_attributes=True)
     

@@ -92,7 +92,7 @@ class EntraCredential(Base):
         inserted_secret = await db.execute(
             select(cls)
             .options(
-                selectinload(cls.vault_associations)
+                selectinload(cls.secret)
             )
             .where(cls.id == entra_credential.id))
 
@@ -108,6 +108,9 @@ class EntraCredential(Base):
 
         entra_credential_result = await db.execute(
             select(cls)
+            .options(
+                selectinload(cls.secret)
+            )
             .where(cls.id == id)
         )
 
@@ -155,9 +158,80 @@ class EntraCredential(Base):
 
         updated_entra_credential = await db.execute(
             select(cls)
+            .options(
+                selectinload(cls.secret)
+            )
             .where(cls.id == id)
         )
 
+        return updated_entra_credential.scalar_one_or_none()
+
+    @classmethod
+    async def update_one_by_object_id(
+        cls,
+        db: AsyncSession,
+        object_id: str,
+        updates: dict,
+    ):
+
+        entra_credential_result = await db.execute(
+            select(cls)
+            .options(
+                selectinload(cls.secret)
+            )
+            .where(cls.object_id == object_id)
+        )
+
+        entra_credential = entra_credential_result.scalar_one_or_none()
+
+        if entra_credential is None:
+            return None
+
+
+        #Get the list of fields
+        update_items = updates.items()
+
+        allowed_fields = {
+            "secret_id",
+            "object_id",
+            "client_id",
+            "display_name",
+            "start_date",
+            "end_date",
+            "secret"
+        }
+
+
+        try:
+            #Load the secret object with the updated values
+            for field, value in update_items:
+
+                if field not in allowed_fields:
+                    continue
+
+                if hasattr(entra_credential, field):
+                    print("UPDATING", field, value)                    
+                    setattr(entra_credential, field, value)
+
+            #set the timestamp
+            updated_date = datetime.now(timezone.utc)
+            entra_credential.last_updated = updated_date
+
+            await db.commit()
+            await db.flush()
+            await db.refresh(entra_credential)
+        except IntegrityError as ie:
+            print("Error updating entra credential", ie)
+            await db.rollback()
+            return None
+
+        updated_entra_credential = await db.execute(
+            select(cls)
+            .options(
+                selectinload(cls.secret)
+            )
+            .where(cls.object_id == object_id)
+        )
         return updated_entra_credential.scalar_one_or_none()
 
 
@@ -186,7 +260,7 @@ class EntraCredential(Base):
         result = await db.execute(
             select(cls)
             .options(
-                selectinload(cls.vault_associations)
+                selectinload(cls.secret)
             )
             .where(cls.id == secret_id)
         )
@@ -200,7 +274,7 @@ class EntraCredential(Base):
         result = await db.execute(
             select(cls)
             .options(
-                selectinload(cls.vault_associations)
+                selectinload(cls.secret)
             )
             .where(cls.object_id == object_id)
         )
@@ -215,7 +289,7 @@ class EntraCredential(Base):
         result = await db.execute(
             select(cls)
             .options(
-                selectinload(cls.vault_associations)
+                selectinload(cls.secret)
             )
         )
         return result.scalars().all()
