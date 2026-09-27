@@ -69,35 +69,102 @@ async def rotate_secret_in_entra(access_token,app_id,secret_id,secret_name):
     new_secret_response.raise_for_status()
 
     #Delete the old secret    
-    # url = (
-    #     f"https://graph.microsoft.com/v1.0/applications/{app_id}/removePassword"
-    # )
+    url = (
+        f"https://graph.microsoft.com/v1.0/applications/{app_id}/removePassword"
+    )
 
-    # payload = {
-    #     "keyId": secret_id
-    # }
+    payload = {
+        "keyId": secret_id
+    }
 
-    # for attempt in range(5):
-    #     delete_response = requests.post(url,headers=headers,json=payload)
+    for attempt in range(5):
+        delete_response = requests.post(url,headers=headers,json=payload)
 
-    #     if delete_response.status_code == 204:
-    #         break
+        if delete_response.status_code == 204:
+            break
 
-    #     if delete_response.status_code == 409:
-    #         await asyncio.sleep(2)
-    #         continue
+        if delete_response.status_code == 409:
+            await asyncio.sleep(2)
+            continue
 
-    # print("REMOVED OLD SECRET", delete_response.status_code, delete_response.text)
+    print("REMOVED OLD SECRET", delete_response.status_code, delete_response.text)
 
-    # delete_response.raise_for_status()
+    delete_response.raise_for_status()
 
     return new_secret_response.json()
 
+async def remove_secret_credentials_and_create_new(access_token,object_id):
+    """
+        Takes the object id of an Entra app registration, removes the credentials and creates a new one
+    """
+    #Get existing credentials
+    url = (
+        f"https://graph.microsoft.com/v1.0/applications/{object_id}" 
+        "?$select=passwordCredentials"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+
+    response = requests.get(url,headers=headers)
+
+    response.raise_for_status()
+
+    print("APP WITH CREDENTIALS", response.status_code, json.dumps(response.json(),indent=4))
+    secret_name = "new secret"
+    if response.status_code == 200:
+        credential_data = response.json()
+        for cred in credential_data["passwordCredentials"]:
+            #Update the secret name
+            secret_name = cred["displayName"]
+            #Delete the secret
+            url = (
+                f"https://graph.microsoft.com/v1.0/applications/{object_id}/removePassword"
+            )
+
+            payload = {
+                "keyId": cred["keyId"]
+            }
+
+            for i in range(5):
+                response = requests.post(url,headers=headers,json=payload)
+                print("RESPONSE",response.status_code,response.text)
+                if response.status_code == 204:
+                    break
+                elif response.status_code == 409:
+                    await asyncio.sleep(2)
+                    continue
+            # else:
+            #     response.raise_for_status()
+    #Create the new secret
+
+    #Set the end date time of the credential
+    end_date_time = (
+        datetime.now(timezone.utc) + timedelta(hours=24)
+    ).isoformat().replace("+00:00", "Z")
+
+    payload = {
+        "passwordCredential": {
+            "displayName": secret_name,
+            "endDateTime": end_date_time
+        }
+    }
+
+    url = f"https://graph.microsoft.com/v1.0/applications/{object_id}/addPassword"
+    for i in range(5):
+        response = requests.post(url,headers=headers,json=payload)
+        if response.status_code == 200:
+            return response.json()
+        if response.status_code == 409:
+            await asyncio.sleep(2)
+            continue
+     
+        print("NEW CRED RESPONSE", response.status_code,response.text)
+        #response.raise_for_status()
 
 
-async def main():
-    token = get_entra_token_management()
-    print("TOKEN", token)
+async def load_service_principals_with_creds_into_db(token):
     secret_data = get_service_principals_with_secrets(token)
     # print("SECRET DATA FROM ENTRA", json.dumps(secret_data,indent=4))
     # for secret_item in secret_data:
@@ -133,40 +200,57 @@ async def main():
         entra_metadata = await EntraCredential.get_all(session)
         entra_credentials = [ EntraCredentialSchema.model_validate(cred) for cred in entra_metadata]
         print("THESE ARE ENTRA CREDENTIALS", entra_credentials)
-    #Put the secret in the vault
+
+
+
+async def main():
+    token = get_entra_token_management()
+    print("TOKEN", token)
+
+    #TODO : NEED METHOD TO CREATE AN ENTRA CREDENTIAL
     object_id = '1fc41e5d-004b-4615-96d5-080c06a17fdc'
-    async with SessionLocal() as session:
-        entra_credential_to_rotate = await EntraCredential.get_by_object_id(session,object_id)
-        print("CREDENTIAL TO ROTATE", entra_credential_to_rotate.display_name, entra_credential_to_rotate.secret_id)
-        # display_name = 'status page authentication'
-        # secret_id = '9dfc4110-c3bb-4bbb-a04a-7836223b9958'
-        new_secret = await rotate_secret_in_entra(token,object_id,entra_credential_to_rotate.secret_id,entra_credential_to_rotate.display_name)
-        #Update entra secret
-        print("THE NEW SECRET IS",json.dumps(new_secret, indent=4))
-        updated_entra_credential = await EntraCredential.update_one(session,id=entra_credential_to_rotate.id, updates={
-            "secret_id" : new_secret["keyId"],
-            "display_name" : new_secret["displayName"],
-            "start_date" : datetime.fromisoformat(new_secret["startDateTime"]),
-            "end_date" : datetime.fromisoformat(new_secret["endDateTime"]),        
-        })
+    new_credential = await remove_secret_credentials_and_create_new(token,object_id)
+    print("NEW CREDENTIAL", json.dumps(new_credential, indent=4))
+
+
+    
+    #Put the secret in the vault
+    #object_id = '1fc41e5d-004b-4615-96d5-080c06a17fdc'
+    #ROTATE CREDENTIAL BY REMOVING ALL OLD CREDS
+
+    #ROTATE CREDENTIAL BY SPECIFYING THE CREDENTIAL TO REPLACE
+    # async with SessionLocal() as session:
+    #     entra_credential_to_rotate = await EntraCredential.get_by_object_id(session,object_id)
+    #     print("CREDENTIAL TO ROTATE", entra_credential_to_rotate.display_name, entra_credential_to_rotate.secret_id)
+    #     # display_name = 'status page authentication'
+    #     # secret_id = '9dfc4110-c3bb-4bbb-a04a-7836223b9958'
+    #     new_secret = await rotate_secret_in_entra(token,object_id,entra_credential_to_rotate.secret_id,entra_credential_to_rotate.display_name)
+    #     #Update entra secret
+    #     print("THE NEW SECRET IS",json.dumps(new_secret, indent=4))
+    #     updated_entra_credential = await EntraCredential.update_one(session,id=entra_credential_to_rotate.id, updates={
+    #         "secret_id" : new_secret["keyId"],
+    #         "display_name" : new_secret["displayName"],
+    #         "start_date" : datetime.fromisoformat(new_secret["startDateTime"]),
+    #         "end_date" : datetime.fromisoformat(new_secret["endDateTime"]),        
+    #     })
         
-        #Add to the vault
-        add_secret_to_vault("entra",object_id,new_secret["secretText"])
-        #Add to database
-        new_secret = await Secret.create_one(
-            session,
-            object_id,
-            None,
-            f"entra/{object_id}"
-        )
-        #Update the association
-        associated_entra_credential = await EntraVaultAssociation.create_association(
-            session,
-            updated_entra_credential,
-            new_secret,
-        )
-        credential_response = EntraCredentialSchema.model_validate(associated_entra_credential)
-        print("NEW CREDENTIAL", credential_response)
+    #     #Add to the vault
+    #     add_secret_to_vault("entra",object_id,new_secret["secretText"])
+    #     #Add to database
+    #     new_secret = await Secret.create_one(
+    #         session,
+    #         object_id,
+    #         None,
+    #         f"entra/{object_id}"
+    #     )
+    #     #Update the association
+    #     associated_entra_credential = await EntraVaultAssociation.create_association(
+    #         session,
+    #         updated_entra_credential,
+    #         new_secret,
+    #     )
+    #     credential_response = EntraCredentialSchema.model_validate(associated_entra_credential)
+    #     print("NEW CREDENTIAL", credential_response)
 
 # THE NEW SECRET IS {
 #     "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#microsoft.graph.passwordCredential",
@@ -181,7 +265,7 @@ async def main():
 
 
 
-    print(json.dumps(credentials_as_dicts, indent=4, default=str))
+    #print(json.dumps(credentials_as_dicts, indent=4, default=str))
 
 if __name__ =="__main__":
     asyncio.run(main()) 

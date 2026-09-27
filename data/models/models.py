@@ -51,11 +51,16 @@ class Secret(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc)
     )
-
-    entra_associations = relationship(
-        "EntraVaultAssociation",
-        back_populates="vault",
+    entra_credential = relationship(
+        "EntraCredential",
+        back_populates="secret",
     )
+
+
+    # entra_associations = relationship(
+    #     "EntraVaultAssociation",
+    #     back_populates="vault",
+    # )
 
     @classmethod
     async def create_one(

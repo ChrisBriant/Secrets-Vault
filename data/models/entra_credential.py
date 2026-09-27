@@ -37,13 +37,28 @@ class EntraCredential(Base):
     display_name = Column(String, index=True, unique=True)
     start_date = Column(DateTime(timezone=True), nullable=False)
     end_date = Column(DateTime(timezone=True), nullable=False)
-    
-    #vault_id = Column(Integer, ForeignKey("entra_vault_associations.id"), nullable=False)
-    
-    vault_associations = relationship(
-        "EntraVaultAssociation",
-        back_populates="entra",
+    vault_id =  Column(
+        Integer, 
+        ForeignKey("secrets.id"), 
+        nullable=True,
+        unique =True
     )
+
+    secret = relationship(
+        "Secret",
+        back_populates="entra_credential",
+        uselist=False,
+    )
+
+
+    #vault_id = Column(Integer, ForeignKey("entra_vault_associations.id"), nullable=False)
+
+
+
+    # vault_associations = relationship(
+    #     "EntraVaultAssociation",
+    #     back_populates="entra",
+    # )
 
     @classmethod
     async def create_one(
