@@ -320,18 +320,6 @@ async def main():
     #     credential_response = EntraCredentialSchema.model_validate(associated_entra_credential)
     #     print("NEW CREDENTIAL", credential_response)
 
-# THE NEW SECRET IS {
-#     "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#microsoft.graph.passwordCredential",
-#     "customKeyIdentifier": null,
-#     "displayName": "status page authentication",
-#     "endDateTime": "2026-09-27T02:39:45.799393Z",
-#     "hint": ".oa",
-#     "keyId": "9dfc4110-c3bb-4bbb-a04a-7836223b9958",
-#     "secretText": "REMOVED",
-#     "startDateTime": "2026-09-26T02:39:46.0148794Z"
-# }
-
-
 
     #print(json.dumps(credentials_as_dicts, indent=4, default=str))
 
