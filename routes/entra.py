@@ -12,16 +12,16 @@ import json
 
 router = APIRouter()
 
-@router.get("/status")
-async def status(token=Depends(validate_ms_token)):
-    """
-        This is a status page that demonstrates the client app authenticates
-        _____________________________________________________________________
-        Press "Authorize" at the tope of the page nad paste the MS token for the authorized app registration into the input and click "Authorize". 
-    """
-    return {
-        "status": "ok"
-    }
+# @router.get("/status")
+# async def status(token=Depends(validate_ms_token)):
+#     """
+#         This is a status page that demonstrates the client app authenticates
+#         _____________________________________________________________________
+#         Press "Authorize" at the tope of the page nad paste the MS token for the authorized app registration into the input and click "Authorize". 
+#     """
+#     return {
+#         "status": "ok"
+#     }
 
 @router.post("/{object_id}/rotate", response_model=EntraCredentialSchema)
 async def rotate_app_client_secret(
@@ -32,6 +32,7 @@ async def rotate_app_client_secret(
     """
     token = get_entra_token_management()
     app_id, display_name, new_credential = await remove_secret_credentials_and_create_new(token,object_id)
+    print("HERE")
     #Update in the database
     async with SessionLocal() as session:
         entra_credential = await EntraCredential.update_one_by_object_id(session,object_id,{
@@ -54,13 +55,13 @@ async def rotate_app_client_secret(
         entra_credential_response = EntraCredentialSchema.model_validate(entra_credential)
         print("CREDENTIAL RESPONSE", entra_credential_response)
         try:
-            add_or_update_secret_to_vault("entra",object_id,new_credential["secretText"])
+            add_or_update_secret_to_vault("entra",object_id,app_id,new_credential["secretText"])
         except Exception as e:
             raise HTTPException(status_code=400, detail="Unable to update the vault")
         if not entra_credential_response.secret:
             print("ADDING NEW SECRET")
             #Create in vault and then new secret in database
-            add_or_update_secret_to_vault("entra",object_id,new_credential["secretText"])
+            add_or_update_secret_to_vault("entra",object_id,app_id,new_credential["secretText"])
             new_secret = await Secret.create_one(
                 session,
                 object_id,

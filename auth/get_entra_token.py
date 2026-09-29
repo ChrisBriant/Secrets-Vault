@@ -40,6 +40,29 @@ def get_entra_token():
 
     return access_token
 
+
+def get_status_app_token_from_entra(username,password):
+    TOKEN_URL = (
+        f"https://login.microsoftonline.com/"
+        f"{TENANT_ID}/oauth2/v2.0/token"
+    )
+
+    token_response = requests.post(
+        TOKEN_URL,
+        data={
+            "client_id": username,
+            "client_secret": password,
+            "scope": f"api://{STATUS_PAGE_API_CLIENT_ID}/.default",
+            "grant_type": "client_credentials",
+        },
+    )
+
+    token_response.raise_for_status()
+
+    access_token = token_response.json()["access_token"]
+
+    return access_token
+
 def get_entra_token_management():
     TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
 

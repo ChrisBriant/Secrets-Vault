@@ -27,12 +27,12 @@ client = hvac.Client(
 )
 
 
-def add_or_update_secret_to_vault(path,username,password):
+def add_or_update_secret_to_vault(path,id,username,password):
     if not client.is_authenticated():
         raise Exception("Vault authentication failed")
     
     secret = client.secrets.kv.v2.create_or_update_secret(
-        path= f"{path}/{username}",
+        path= f"{path}/{id}",
         secret={
             "username": username,
             "password": password

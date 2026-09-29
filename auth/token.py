@@ -51,3 +51,30 @@ def validate_ms_token(
             status_code=401,
             detail="Invalid access token"
         )
+
+
+def validate_ms_token_from_string(
+    token: str
+):
+    try:
+        JWKS_URL = f"https://login.microsoftonline.com/{TENANT_ID}/discovery/v2.0/keys"
+
+        jwks_client = PyJWKClient(JWKS_URL)
+
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=API_CLIENT_ID,
+            issuer=ISSUER,
+        )
+
+        return True
+    except Exception as e:
+        print("ERROR VALIDATING TOKEN", e)
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid access token"
+        )

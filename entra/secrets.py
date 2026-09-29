@@ -262,13 +262,13 @@ async def main():
         entra_credential_response = EntraCredentialSchema.model_validate(entra_credential)
         print("CREDENTIAL RESPONSE", entra_credential_response)
         try:
-            add_or_update_secret_to_vault("entra",object_id,new_credential["secretText"])
+            add_or_update_secret_to_vault("entra",object_id,app_id,new_credential["secretText"])
         except Exception as e:
             raise HTTPException(status_code=400, detail="Unable to update the vault")
         if not entra_credential_response.secret:
             print("ADDING NEW SECRET")
             #Create in vault and then new secret in database
-            add_or_update_secret_to_vault("entra",object_id,new_credential["secretText"])
+            add_or_update_secret_to_vault("entra",object_id,app_id,new_credential["secretText"])
             new_secret = await Secret.create_one(
                 session,
                 object_id,
@@ -319,6 +319,8 @@ async def main():
     #     )
     #     credential_response = EntraCredentialSchema.model_validate(associated_entra_credential)
     #     print("NEW CREDENTIAL", credential_response)
+
+
 
 
     #print(json.dumps(credentials_as_dicts, indent=4, default=str))
