@@ -32,3 +32,6 @@ The server will display a root token when it starts. Copy this value to the envi
 
 ## RUNNING FASTAPI
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+## Run Ngrok
+ngrok http 8000

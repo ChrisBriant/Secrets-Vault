@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from routes.hashicorp import router as hashicorp_router
 from routes.entra import router as entra_router
 from routes.status_app import router as status_app_router
+from routes.github import router as github_router
 import os
 import dotenv
 
@@ -27,3 +28,4 @@ app.add_middleware(
 app.include_router(hashicorp_router, prefix="/hashicorp")
 app.include_router(entra_router, prefix="/entra")
 app.include_router(status_app_router, prefix="/status-app")
+app.include_router(github_router,prefix="/github")

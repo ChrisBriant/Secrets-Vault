@@ -10,6 +10,12 @@ from datetime import datetime
 from auth.get_entra_token import get_status_app_token_from_entra
 from auth.token import validate_ms_token_from_string
 import json, os, dotenv, requests
+from auth.token import (
+    obtain_jwt_pair, 
+    ACCESS_TOKEN_LIFETIME,
+    REFRESH_TOKEN_LIFETIME
+)
+
 
 router = APIRouter()
 
@@ -51,7 +57,13 @@ async def authenticate():
     response = requests.get(url,headers=headers)
 
     print("RESPONSE", response.status_code, response.text)
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.text
+        )
 
     if response.status_code == 200:
         credential = response.json()["data"]["data"]
@@ -68,9 +80,32 @@ async def authenticate():
                 print("VALID", valid)
                 if valid:
                     #ISSUE A JWT FOR THE CLIENT TO ACCESS THE STATUS PAGE
-                    pass
+                    #Issue a JWT
+                    jwt_token_pair = obtain_jwt_pair(credential["username"]) 
+                    print("HERE IS THE TOKEN PAIR", jwt_token_pair)
+                    response = Response()
+                    # Access token cookie
+                    response.set_cookie(
+                        key="access_token",
+                        value=jwt_token_pair["access"],
+                        httponly=True,
+                        secure=True,          # HTTPS only
+                        samesite="none",
+                        max_age=ACCESS_TOKEN_LIFETIME,
+                    )
+
+                    # Refresh token cookie
+                    response.set_cookie(
+                        key="refresh_token",
+                        value=jwt_token_pair["refresh"],
+                        httponly=True,
+                        secure=True,
+                        samesite="none",
+                        max_age=REFRESH_TOKEN_LIFETIME, 
+                    )
+                    return response    
+        
             except Exception as e:
                 print("TOKEN NOT VALID", e)
         except Exception as e:
             print("UNABLE TO GET THE TOKEN", e)
-    return "Hello Mickey"    
